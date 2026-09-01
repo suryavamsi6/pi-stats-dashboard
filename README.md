@@ -25,28 +25,30 @@ Costs are the values recorded by providers and may be zero or unavailable. They 
 
 The server binds to `127.0.0.1`, uses a random URL token, and returns aggregate data only. Prompt and response text is never retained or returned; behavior analysis happens in memory.
 
-## NixOS / Nix
+## NixOS
 
-> Requires Pi to be installed separately. The flake is a package source, not a NixOS module.
+> Requires Pi to be installed separately.
 
-Use it directly from GitHub:
-
-```bash
-nix build github:suryavamsi6/pi-stats-dashboard
-pi install "$(nix build --no-link --print-out-paths github:suryavamsi6/pi-stats-dashboard)"
-```
-
-Or add it as a flake input and expose the package in your NixOS configuration:
+Add the flake and module to your NixOS configuration:
 
 ```nix
 inputs.pi-stats-dashboard.url = "github:suryavamsi6/pi-stats-dashboard";
 
-environment.systemPackages = [
-  inputs.pi-stats-dashboard.packages.${pkgs.system}.default
+modules = [
+  inputs.pi-stats-dashboard.nixosModules.default
 ];
+
+programs.pi-stats-dashboard.enable = true;
 ```
 
-Then register the built package with Pi:
+Apply the configuration, then register the package with Pi:
+
+```bash
+sudo nixos-rebuild switch --flake .#your-hostname
+pi install /run/current-system/sw/share/pi-stats-dashboard
+```
+
+For a one-off install without the module:
 
 ```bash
 pi install "$(nix build --no-link --print-out-paths github:suryavamsi6/pi-stats-dashboard)"

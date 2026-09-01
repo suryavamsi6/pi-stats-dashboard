@@ -23,6 +23,16 @@ Costs are the values recorded by providers and may be zero or unavailable. They 
 
 The server binds to `127.0.0.1`, uses a random URL token, and returns aggregate data only. Prompt and response text is never retained or returned; behavior analysis happens in memory.
 
+## NixOS / Nix
+
+> Requires Pi to be installed separately.
+
+```bash
+nix develop                 # Node 22 development shell
+nix build                   # Build the Pi package
+pi install "$(nix build --no-link --print-out-paths)"
+```
+
 ## Development
 
 ```bash

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pi Stats — Local observability</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d0f10;
+      --surface: #141718;
+      --surface-raised: #1b1f20;
+      --surface-soft: #202526;
+      --line: #2b3233;
+      --line-bright: #3c4646;
+      --ink: #f2f4ee;
+      --muted: #a1aaa6;
+      --dim: #697371;
+      --lime: #c7f36a;
+      --lime-dark: #30461e;
+      --blue: #8bb9ff;
+      --orange: #f3bc72;
+      --violet: #d3adff;
+      --red: #ff928d;
+      --radius: 12px;
+      --space: 8px;
+      font: 14px/1.5 "IBM Plex Sans", "Helvetica Neue", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body { margin: 0; min-width: 320px; background: var(--bg); color: var(--ink); }
+    button, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, select:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+
+    .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+    .rail { display: flex; flex-direction: column; gap: 44px; padding: 28px 16px 22px; border-right: 1px solid var(--line); background: #111415; }
+    .brand { display: flex; align-items: center; gap: 11px; padding: 0 12px; }
+    .mark { width: 25px; height: 25px; border: 5px solid var(--lime); border-radius: 50%; box-shadow: 0 0 0 3px #293722, 0 0 22px #a8d64d33; }
+    .brand strong { font-size: 15px; letter-spacing: -.04em; }
+    .brand small { display: block; margin-top: -2px; color: var(--dim); font: 10px/1.2 "SFMono-Regular", Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
+    .nav { display: grid; gap: 5px; }
+    .nav button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); text-align: left; transition: background .18s ease, color .18s ease, transform .18s ease; }
+    .nav button:hover { background: var(--surface-soft); color: var(--ink); transform: translateX(2px); }
+    .nav button[aria-selected="true"] { background: var(--lime); color: #11150f; font-weight: 700; box-shadow: 0 5px 18px #b4e95a1f; }
+    .nav button span { width: 17px; color: currentColor; font-size: 15px; text-align: center; }
+    .rail-foot { margin-top: auto; padding: 0 12px; color: var(--dim); font: 10px/1.7 "SFMono-Regular", Consolas, monospace; letter-spacing: .1em; }
+    .rail-foot b { color: var(--lime); font-weight: 400; }
+
+    .content { width: 100%; padding: 34px clamp(24px, 4vw, 64px) 72px; overflow: hidden; }
+    .topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; max-width: 1480px; margin: 0 auto 42px; }
+    .eyebrow, .label { color: var(--dim); font: 700 10px/1.2 "SFMono-Regular", Consolas, monospace; letter-spacing: .15em; text-transform: uppercase; }
+    .title h1 { max-width: 700px; margin: 8px 0 7px; font-size: clamp(34px, 4vw, 58px); line-height: .98; letter-spacing: -.075em; font-weight: 750; }
+    .title p { max-width: 500px; margin: 0; color: var(--muted); }
+    .controls { display: flex; align-items: center; gap: 18px; padding-bottom: 3px; }
+    .live { display: flex; align-items: center; gap: 8px; color: var(--muted); font: 10px "SFMono-Regular", Consolas, monospace; letter-spacing: .08em; white-space: nowrap; }
+    .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 4px #bce86718, 0 0 12px var(--lime); }
+    select { appearance: none; min-width: 126px; padding: 10px 32px 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 15px) 14px, calc(100% - 11px) 14px; background-size: 4px 4px, 4px 4px; background-repeat: no-repeat; }
+
+    #app { max-width: 1480px; margin: 0 auto; }
+    .overview { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 17px; }
+    .overview h2 { margin: 0; font-size: 18px; letter-spacing: -.035em; }
+    .range { margin-top: 3px; color: var(--dim); font-size: 12px; }
+    .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .card { min-height: 135px; padding: 19px 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-raised); }
+    .card:first-child { border-color: #4f6c2d; background: linear-gradient(140deg, #28371f, #1d281d); }
+    .card .value { margin-top: 17px; font-size: clamp(25px, 2.1vw, 32px); line-height: 1; font-weight: 700; letter-spacing: -.06em; }
+    .card:first-child .value { color: var(--lime); }
+    .sub { margin-top: 8px; color: var(--dim); font-size: 11px; }
+
+    .grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, .8fr); gap: 12px; margin-top: 12px; }
+    .panel { min-width: 0; padding: 21px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 23px; }
+    .panel h3 { margin: 0; font-size: 14px; letter-spacing: -.015em; }
+    .panel-head small { color: var(--dim); font: 10px "SFMono-Regular", Consolas, monospace; letter-spacing: .06em; text-transform: uppercase; }
+    .bars { display: flex; align-items: end; gap: clamp(5px, 1.3vw, 14px); height: 232px; padding: 0 2px; border-bottom: 1px solid var(--line); }
+    .bar-col { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: end; min-width: 0; height: 100%; gap: 9px; }
+    .bar-col i { display: block; width: min(100%, 32px); min-height: 3px; border-radius: 4px 4px 1px 1px; background: var(--blue); box-shadow: 0 0 16px #8bb9ff22; transition: filter .18s ease, transform .18s ease; }
+    .bar-col:hover i { filter: brightness(1.3); transform: scaleY(1.03); transform-origin: bottom; }
+    .bar-col:nth-last-child(-n+7) i { background: var(--lime); box-shadow: 0 0 16px #c7f36a26; }
+    .bar-col span { overflow: hidden; max-width: 100%; color: var(--dim); font: 10px "SFMono-Regular", Consolas, monospace; white-space: nowrap; }
+    .stat-list { display: grid; gap: 17px; }
+    .stat-line { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .stat-line .name { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+    .stat-line strong { font-size: 12px; white-space: nowrap; }
+    .meter { height: 4px; margin-top: 8px; overflow: hidden; border-radius: 9px; background: var(--line); }
+    .meter i { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
+    .section { margin-top: 28px; }
+    .section h2 { margin: 0 0 13px; font-size: 18px; letter-spacing: -.035em; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+    .table { width: 100%; min-width: 570px; border-collapse: collapse; }
+    .table th, .table td { padding: 14px 17px; border-bottom: 1px solid var(--line); text-align: left; }
+    .table tr:last-child td { border-bottom: 0; }
+    .table th { color: var(--dim); background: var(--surface-raised); font: 700 10px "SFMono-Regular", Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; }
+    .table td:not(:first-child) { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .table td:first-child { font-weight: 600; }
+    .note { margin: 12px 0 0; color: var(--dim); font-size: 12px; }
+    .empty { padding: 38px 16px; border: 1px dashed var(--line-bright); border-radius: 9px; color: var(--muted); text-align: center; }
+    .error { color: var(--red); }
+
+    @media (max-width: 850px) {
+      .shell { display: block; }
+      .rail { gap: 18px; padding: 16px 18px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .brand { padding: 0; }
+      .nav { display: flex; overflow-x: auto; margin: 0 -6px; padding: 2px 6px 4px; }
+      .nav button { width: auto; flex: 0 0 auto; white-space: nowrap; }
+      .rail-foot { display: none; }
+      .content { padding: 28px 18px 48px; }
+      .topbar { display: block; margin-bottom: 32px; }
+      .controls { justify-content: space-between; margin-top: 24px; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 430px) {
+      .title h1 { font-size: 37px; }
+      .cards { gap: 8px; }
+      .card { min-height: 112px; padding: 15px; }
+      .card .value { margin-top: 14px; font-size: 24px; }
+      .panel { padding: 16px; }
+      .bars { height: 190px; gap: 4px; }
+      .bar-col span { font-size: 9px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <aside class="rail">
+      <div class="brand"><i class="mark" aria-hidden="true"></i><div><strong>pi / stats</strong><small>local telemetry</small></div></div>
+      <nav class="nav" role="tablist" aria-label="Dashboard sections"></nav>
+      <div class="rail-foot"><b>●</b> LOCAL ONLY<br>privacy-first telemetry</div>
+    </aside>
+    <section class="content">
+      <header class="topbar">
+        <div class="title"><div class="eyebrow">Local observability / pi agent</div><h1>Usage overview</h1><p>Sessions, models, and token spend — without sending your telemetry anywhere.</p></div>
+        <div class="controls"><div class="live"><i aria-hidden="true"></i> SYNCED JUST NOW</div><label><span class="eyebrow" hidden>Range</span><select id="range" aria-label="Date range"><option value="all">Lifetime</option><option value="today">Today</option><option value="week">Last 7 days</option><option value="month">Last 30 days</option></select></label></div>
+      </header>
+      <div id="app"></div>
+    </section>
+  </main>
+  <script>
+    const token = "__TOKEN__", tabs = [['Overview','◈'],['Models','◇'],['Providers','⌁'],['Projects','▦'],['Agents','◎'],['Tools','⌘'],['Behavior','◌']];
+    let data = __DATA__, active = 0;
+    const nav = document.querySelector('.nav'), app = document.querySelector('#app');
+    tabs.forEach(([name, icon], i) => { const b = document.createElement('button'); b.innerHTML = `<span aria-hidden="true">${icon}</span>${name}`; b.setAttribute('role','tab'); b.setAttribute('aria-selected', i === 0); b.onclick = () => { active = i; render(); }; nav.append(b); });
+    const fmt = n => Intl.NumberFormat().format(Math.round(n || 0)), money = n => '$' + (n || 0).toFixed(4), esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function cards(o) { return `<div class="cards">${[['Requests',fmt(o.requests),'total calls'],['Tokens',fmt(o.tokens),'input + output + reasoning'],['Recorded cost',money(o.cost),'provider estimate'],['Errors',fmt(o.errors),'failed responses']].map(x => `<article class="card"><div class="label">${x[0]}</div><div class="value">${x[1]}</div><div class="sub">${x[2]}</div></article>`).join('')}</div>`; }
+    function chart() { const entries = Object.entries(data.days).slice(-14), max = Math.max(1, ...entries.map(([,v]) => v.requests)); return `<div class="panel"><div class="panel-head"><h3>Daily activity</h3><small>requests / day</small></div>${entries.length ? `<div class="bars">${entries.map(([d,v]) => `<div class="bar-col" title="${esc(d)}: ${fmt(v.requests)} requests"><i style="height:${Math.max(2, v.requests / max * 82)}%"></i><span>${d.slice(5)}</span></div>`).join('')}</div>` : '<div class="empty">No activity recorded yet.</div>'}</div>`; }
+    function leaders(obj) { const rows = Object.entries(obj).sort((a,b) => b[1].tokens - a[1].tokens).slice(0,5), max = Math.max(1, ...rows.map(([,v]) => v.tokens)); return `<div class="panel"><div class="panel-head"><h3>Top contributors</h3><small>by tokens</small></div>${rows.length ? `<div class="stat-list">${rows.map(([k,v]) => `<div><div class="stat-line"><span class="name">${esc(k)}</span><strong>${fmt(v.tokens)}</strong></div><div class="meter"><i style="width:${v.tokens / max * 100}%"></i></div></div>`).join('')}</div>` : '<div class="empty">No data for this range.</div>'}</div>`; }
+    function table(obj) { const rows = Object.entries(obj).sort((a,b) => b[1].tokens - a[1].tokens); return rows.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Requests</th><th>Tokens</th><th>Cost</th><th>Errors</th></tr></thead><tbody>${rows.map(([k,v]) => `<tr><td>${esc(k)}</td><td>${fmt(v.requests)}</td><td>${fmt(v.tokens)}</td><td>${money(v.cost)}</td><td>${fmt(v.errors)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No records in this view yet.</div>'; }
+    function behavior(b) { return `<div class="cards">${Object.entries(b).filter(([k]) => k !== 'chars' && k !== 'words').map(([k,v]) => `<article class="card"><div class="label">${esc(k)}</div><div class="value">${fmt(v)}</div></article>`).join('')}</div><p class="note">Behavior counters are computed in memory from user messages. Prompt text is never retained.</p>`; }
+    function tokenMix(o) { const parts = [['Input',o.input,'var(--blue)'],['Output',o.output,'var(--lime)'],['Reasoning',o.reasoning,'var(--violet)'],['Cache read',o.cacheRead,'var(--orange)']].filter(x => x[1] > 0), max = Math.max(1, ...parts.map(x => x[1])); return `<div class="panel"><div class="panel-head"><h3>Token mix</h3><small>volume by type</small></div>${parts.length ? `<div class="stat-list">${parts.map(([k,v,c]) => `<div><div class="stat-line"><span class="name">${k}</span><strong>${fmt(v)}</strong></div><div class="meter"><i style="width:${v / max * 100}%;background:${c}"></i></div></div>`).join('')}</div>` : '<div class="empty">No token usage recorded yet.</div>'}</div>`; }
+    function health() { const d = data.diagnostics || {}; return `<div class="panel"><div class="panel-head"><h3>Data health</h3><small>ingestion status</small></div><div class="stat-list"><div class="stat-line"><span class="name">Session files scanned</span><strong>${fmt(d.files)}</strong></div><div class="stat-line"><span class="name">Standard sessions</span><strong>${fmt(d.standardSessions)}</strong></div><div class="stat-line"><span class="name">Invalid lines</span><strong class="${d.invalidLines ? 'error' : ''}">${fmt(d.invalidLines)}</strong></div><div class="stat-line"><span class="name">Skipped records</span><strong>${fmt(d.skippedRecords)}</strong></div></div></div>`; }
+    function render() { [...nav.children].forEach((b,i) => b.setAttribute('aria-selected', i === active)); const range = document.querySelector('#range').value, o = data.ranges[range] || data.totals.all; if (active === 0) app.innerHTML = `<div class="overview"><div><h2>Overview</h2><div class="range">${range === 'all' ? 'All recorded time' : `Showing ${range} activity`}</div></div></div>${cards(o)}<div class="grid">${chart()}${leaders(data.by.model)}</div><div class="grid">${tokenMix(o)}${health()}</div><div class="section"><h2>Provider breakdown</h2>${table(data.by.provider)}</div>`; else if (active === 6) app.innerHTML = `<div class="overview"><div><h2>Conversation behavior</h2><div class="range">Patterns, not transcripts</div></div></div>${behavior(data.behavior)}`; else { const key = ['model','provider','project','agent','tool'][active - 1]; app.innerHTML = `<div class="overview"><div><h2>${tabs[active][0]}</h2><div class="range">Breakdown of recorded usage</div></div></div>${table(data.by[key])}<p class="note">Unsupported historical metrics: latency, TTFT, tokens/sec, subscription windows.</p>`; } }
+    async function load() { try { const r = await fetch('/api/stats?token=' + encodeURIComponent(token)); if (!r.ok) throw Error('API returned ' + r.status); data = await r.json(); render(); } catch (e) { app.innerHTML = `<div class="empty error">Unable to load live stats: ${esc(e.message)}</div>`; } }
+    document.querySelector('#range').onchange = render; render(); load(); setInterval(load, 30000);
+  </script>
+</body>
+</html>

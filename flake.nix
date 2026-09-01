@@ -11,7 +11,7 @@
       packages = forAllSystems (pkgs: {
         default = pkgs.stdenvNoCC.mkDerivation {
           pname = "pi-stats-dashboard";
-          version = "0.1.2";
+          version = "0.1.3";
           src = ./.;
           dontBuild = true;
           installPhase = ''

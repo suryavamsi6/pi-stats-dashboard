@@ -2,7 +2,9 @@
 
 A local, privacy-first `/stats` dashboard for [Pi](https://pi.dev). It reads Pi's persisted JSONL sessions and opens a browser dashboard with lifetime, today, 7-day, and 30-day usage.
 
-![Pi Stats dashboard](https://unpkg.com/pi-stats-dashboard@0.1.2/artifacts/stats.png)
+[GitHub repository](https://github.com/suryavamsi6/pi-stats-dashboard) · [npm package](https://www.npmjs.com/package/pi-stats-dashboard)
+
+![Pi Stats dashboard](https://unpkg.com/pi-stats-dashboard@0.1.3/artifacts/stats.png)
 
 ## Install
 
@@ -25,12 +27,29 @@ The server binds to `127.0.0.1`, uses a random URL token, and returns aggregate 
 
 ## NixOS / Nix
 
-> Requires Pi to be installed separately.
+> Requires Pi to be installed separately. The flake is a package source, not a NixOS module.
+
+Use it directly from GitHub:
 
 ```bash
-nix develop                 # Node 22 development shell
-nix build                   # Build the Pi package
-pi install "$(nix build --no-link --print-out-paths)"
+nix build github:suryavamsi6/pi-stats-dashboard
+pi install "$(nix build --no-link --print-out-paths github:suryavamsi6/pi-stats-dashboard)"
+```
+
+Or add it as a flake input and expose the package in your NixOS configuration:
+
+```nix
+inputs.pi-stats-dashboard.url = "github:suryavamsi6/pi-stats-dashboard";
+
+environment.systemPackages = [
+  inputs.pi-stats-dashboard.packages.${pkgs.system}.default
+];
+```
+
+Then register the built package with Pi:
+
+```bash
+pi install "$(nix build --no-link --print-out-paths github:suryavamsi6/pi-stats-dashboard)"
 ```
 
 ## Development

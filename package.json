@@ -1,12 +1,14 @@
 {
   "name": "pi-stats-dashboard",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Local usage and behavior dashboard for Pi agent sessions",
   "type": "module",
   "keywords": ["pi-package", "pi", "dashboard", "llm", "statistics"],
   "license": "MIT",
   "engines": { "node": ">=22" },
+  "repository": { "type": "git", "url": "https://github.com/suryavamsi6/pi-stats-dashboard.git" },
+  "homepage": "https://github.com/suryavamsi6/pi-stats-dashboard#readme",
   "files": ["extensions", "src", "artifacts/stats.png", "README.md", "LICENSE", "package.json"],
   "scripts": { "test": "node --test", "check": "node --check extensions/stats.js && node --check src/aggregate.js && node --check src/behavior.js && node --check src/server.js" },
-  "pi": { "extensions": ["./extensions/stats.js"], "image": "https://unpkg.com/pi-stats-dashboard@0.1.2/artifacts/stats.png" }
+  "pi": { "extensions": ["./extensions/stats.js"], "image": "https://unpkg.com/pi-stats-dashboard@0.1.3/artifacts/stats.png" }
 }
